@@ -5,6 +5,7 @@ from plotly.subplots import make_subplots
 from statsmodels.tsa.stattools import pacf, acf
 
 from functions.general import DateTimeConverter
+from functions.plots.name_mapping import get_name
 
 
 class PlotService:
@@ -12,16 +13,22 @@ class PlotService:
         pass
 
     @staticmethod
-    def _init_figure(title, legend_title='Legende'):
+    def _init_figure(title):
         """Initializes a Plotly figure with standard layout options."""
         fig = go.Figure()
         fig.update_layout(
             title=title,
-            legend_title=legend_title,
             xaxis=dict(tickmode="auto"),
             hovermode="x unified",
             modebar_add=["zoom", "pan", "resetScale2d", "select2d", "lasso2d"],
-            showlegend=True
+            showlegend=True,
+            legend=dict(
+                yanchor="top",
+                y=-0.2,
+                x=0.5,
+                xanchor="center",
+                orientation="h"
+            )
         )
         return fig
 
@@ -76,7 +83,7 @@ class PlotService:
                 x=x_data,
                 y=y_data,
                 mode='lines',
-                name=y_column
+                name=get_name(y_column)
             ))
         fig.show()
 
@@ -91,7 +98,7 @@ class PlotService:
             fig.add_trace(go.Bar(
                 x=x_data,
                 y=array_or_df[y_column],
-                name=y_column
+                name=get_name(y_column)
             ))
         fig.show()
 
@@ -104,7 +111,7 @@ class PlotService:
         for column in columns:
             fig.add_trace(go.Histogram(
                 x=array_or_df[column],
-                name=column,
+                name=get_name(column),
                 opacity=0.75,
             ))
         fig.update_layout(bargap=gap_size)
@@ -144,7 +151,7 @@ class PlotService:
         for column in columns:
             fig.add_trace(go.Box(
                 y=array_or_df[column],
-                name=column
+                name=get_name(column)
             ))
         fig.show()
 
