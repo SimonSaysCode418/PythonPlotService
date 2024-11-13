@@ -4,7 +4,7 @@ import pandas as pd
 from plotly.subplots import make_subplots
 from statsmodels.tsa.stattools import pacf, acf
 
-from functions.general.date_time_converter import DateTimeConverter
+from functions.general import DateTimeConverter
 
 
 class PlotService:
@@ -19,7 +19,9 @@ class PlotService:
             title=title,
             legend_title=legend_title,
             xaxis=dict(tickmode="auto"),
-            hovermode="x unified"
+            hovermode="x unified",
+            modebar_add=["zoom", "pan", "resetScale2d", "select2d", "lasso2d"],
+            showlegend=True
         )
         return fig
 
@@ -38,9 +40,15 @@ class PlotService:
     @staticmethod
     def _determine_y_columns(array_or_df, x_column, y_columns):
         if isinstance(array_or_df, pd.DataFrame):
-            return y_columns or [col for col in array_or_df.columns if col != x_column]
+            if x_column is None:
+                return y_columns or list(array_or_df.columns)
+            else:
+                return y_columns or [col for col in array_or_df.columns if col != x_column]
         elif isinstance(array_or_df, np.ndarray) and array_or_df.dtype.names:
-            return y_columns or [name for name in array_or_df.dtype.names if name != x_column]
+            if x_column is None:
+                raise ValueError("Structured NumPy arrays require an explicit x_column.")
+            else:
+                return y_columns or [name for name in array_or_df.dtype.names if name != x_column]
         else:
             raise TypeError("Input must be a DataFrame or a structured NumPy array with named columns")
 
@@ -51,6 +59,9 @@ class PlotService:
             mask = (~np.isnan(array_or_df[y_column])) & (array_or_df[y_column] is not None)
         x_data_filtered = self._init_x_data(array_or_df[mask], x_column)
         y_data_filtered = array_or_df[y_column][mask]
+
+        if x_column is None:
+            y_data_filtered = y_data_filtered.reindex(x_data_filtered)
 
         return x_data_filtered, y_data_filtered
 
@@ -84,7 +95,7 @@ class PlotService:
             ))
         fig.show()
 
-    def plot_histogram(self, array_or_df, columns=None, title="Histogram"):
+    def plot_histogram(self, array_or_df, columns=None, title="Histogram", gap_size=0.2):
         """Plots a histogram for the selected columns."""
         fig = self._init_figure(title)
 
@@ -94,8 +105,9 @@ class PlotService:
             fig.add_trace(go.Histogram(
                 x=array_or_df[column],
                 name=column,
-                opacity=0.75
+                opacity=0.75,
             ))
+        fig.update_layout(bargap=gap_size)
         fig.show()
 
     def plot_acf_pacf(self, series, alpha=0.05, lags=None, title=None, b_pacf=False):
