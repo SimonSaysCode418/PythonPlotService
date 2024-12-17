@@ -9,28 +9,9 @@ from functions.plots.name_mapping import get_name
 
 
 class PlotService:
-    def __init__(self):
-        pass
-
-    @staticmethod
-    def _init_figure(title):
-        """Initializes a Plotly figure with standard layout options."""
-        fig = go.Figure()
-        fig.update_layout(
-            title=title,
-            xaxis=dict(tickmode="auto"),
-            hovermode="x unified",
-            modebar_add=["zoom", "pan", "resetScale2d", "select2d", "lasso2d"],
-            showlegend=True,
-            legend=dict(
-                yanchor="top",
-                y=-0.2,
-                x=0.5,
-                xanchor="center",
-                orientation="h"
-            )
-        )
-        return fig
+    def __init__(self, height=None, width=None):
+        self.height = height
+        self.width = width
 
     @staticmethod
     def _init_x_data(array_or_df, x_column):
@@ -71,6 +52,27 @@ class PlotService:
             y_data_filtered = y_data_filtered.reindex(x_data_filtered)
 
         return x_data_filtered, y_data_filtered
+
+    def _init_figure(self, title):
+        """Initializes a Plotly figure with standard layout options."""
+        fig = go.Figure()
+        fig.update_layout(
+            title=title,
+            height=self.height,
+            width=self.width,
+            xaxis=dict(tickmode="auto"),
+            hovermode="x unified",
+            modebar_add=["zoom", "pan", "resetScale2d", "select2d", "lasso2d"],
+            showlegend=True,
+            legend=dict(
+                yanchor="top",
+                y=-0.2,
+                x=0.5,
+                xanchor="center",
+                orientation="h"
+            )
+        )
+        return fig
 
     def plot_line_chart(self, array_or_df, x_column=None, y_columns=None, title="Line Chart"):
         """Plots a line chart using the provided DataFrame."""
