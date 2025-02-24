@@ -115,6 +115,8 @@ class PlotService:
 
     def plot_histogram(self, array_or_df, columns, hue_column=None, title="Histogram", gap_size=0.2, bins=30,
                        use_matplotlib=None):
+        columns = self._determine_y_columns(array_or_df, None, columns)
+
         if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
             plt.figure(figsize=(self.width / 100, self.height / 100))
             if hue_column:
