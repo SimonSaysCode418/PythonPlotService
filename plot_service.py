@@ -113,7 +113,7 @@ class PlotService:
                 fig.add_trace(go.Bar(x=x_data, y=array_or_df[y_column], name=get_name(y_column)))
             fig.show()
 
-    def plot_histogram(self, array_or_df, columns, hue_column=None, title="Histogram", gap_size=0.2, bins=30,
+    def plot_histogram(self, array_or_df, columns=None, hue_column=None, title="Histogram", gap_size=0.2, bins=30,
                        use_matplotlib=None):
         columns = self._determine_y_columns(array_or_df, None, columns)
 
@@ -126,7 +126,7 @@ class PlotService:
                 plt.legend(title=hue_column)
             else:
                 for col in columns:
-                    plt.hist(array_or_df[col], bins=bins, alpha=0.5, label=col)
+                    plt.hist(array_or_df[col], bins=bins, alpha=0.5, label=get_name(col))
                 plt.legend()
             plt.title(title)
             plt.show()
@@ -135,11 +135,11 @@ class PlotService:
             if hue_column:
                 groups = array_or_df.groupby(hue_column)
                 for hue, group in groups:
-                    fig.add_trace(go.Histogram(x=group[columns[0]], name=str(hue), opacity=0.75))
-                fig.update_layout(barmode='overlay', legend_title=f"{hue_column}")
+                    fig.add_trace(go.Histogram(x=group[columns[0]], name=str(get_name(hue)), opacity=0.75))
+                fig.update_layout(barmode='overlay', legend_title=f"{get_name(hue_column)}")
             else:
                 for col in columns:
-                    fig.add_trace(go.Histogram(x=array_or_df[col], name=col, opacity=0.75))
+                    fig.add_trace(go.Histogram(x=array_or_df[col], name=get_name(col), opacity=0.75))
                 fig.update_layout(bargap=gap_size)
             fig.show()
 
