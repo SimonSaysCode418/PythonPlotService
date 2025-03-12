@@ -1,4 +1,3 @@
-from itertools import cycle
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -78,23 +77,95 @@ class PlotService:
         )
         return fig
 
-    def plot_line_chart(self, array_or_df, x_column=None, y_columns=None, title="Line Chart", use_matplotlib=None):
-        y_columns = self._determine_y_columns(array_or_df, x_column, y_columns)
+    def _calculate_ranges(self, array_or_df, y_columns):
+        value_ranges = {col: array_or_df[col].max() - array_or_df[col].min() for col in y_columns}
 
-        if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
+        return sorted(y_columns, key=lambda col: value_ranges[col])
+
+    def _plot_line_chart_matplotlib(self, array_or_df, x_column, y_columns, title, multi_axes):
+        if multi_axes and len(y_columns) > 1:
+            fig, ax1 = plt.subplots(figsize=(self.width / 100, self.height / 100))
+            axes = [ax1]
+
+            sorted_columns = self._calculate_ranges(array_or_df, y_columns)
+
+            num_axes = min(len(y_columns), 4)
+
+            axis_mapping = {}
+            for i, col in enumerate(sorted_columns[:num_axes]):
+                if i == 0:
+                    axis_mapping[col] = ax1
+                else:
+                    new_ax = ax1.twinx()
+                    new_ax.spines[f'right' if i % 2 else 'left'].set_position(("outward", int(i / 2) * 50))
+                    axes.append(new_ax)
+                    axis_mapping[col] = new_ax
+
+            colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+            for i, y_column in enumerate(y_columns[:num_axes]):
+                x_data, y_data = self._init_xy_data(array_or_df, x_column, y_column)
+                axis_mapping[y_column].plot(x_data, y_data, label=get_name(y_column),
+                                            color=colors[i % len(colors)])
+
+            handles, labels = zip(*[ax.get_legend_handles_labels() for ax in axes])
+            handles, labels = sum(handles, []), sum(labels, [])
+            plt.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.25), ncol=len(y_columns))
+        else:
             plt.figure(figsize=(self.width / 100, self.height / 100))
             for y_column in y_columns:
                 x_data, y_data = self._init_xy_data(array_or_df, x_column, y_column)
                 plt.plot(x_data, y_data, label=get_name(y_column))
-            plt.title(title)
-            plt.legend()
-            plt.show()
+                plt.legend(loc="lower center", bbox_to_anchor=(0.5, -0.25), ncol=len(y_columns))
+
+        plt.title(title)
+        plt.subplots_adjust(bottom=0.2)
+        plt.show()
+
+    def _plot_line_chart_plotly(self, array_or_df, x_column, y_columns, title, multi_axes):
+        fig = self._init_figure(title)
+
+        sorted_columns = self._calculate_ranges(array_or_df, y_columns)
+
+        if multi_axes and len(y_columns) > 1:
+            num_axes = min(len(y_columns), 4)
+            axis_mapping = {col: f"y{i + 1}" for i, col in enumerate(sorted_columns[:num_axes])}
+
+            for i, y_column in enumerate(sorted_columns[:num_axes]):
+                x_data, y_data = self._init_xy_data(array_or_df, x_column, y_column)
+                fig.add_trace(go.Scatter(x=x_data, y=y_data, mode='lines', name=get_name(y_column),
+                                         yaxis=axis_mapping[y_column]))
+
+            layout_updates = {
+                "yaxis": dict(side="left", showgrid=True)
+            }
+            for i in range(1, num_axes):
+                layout_updates[f"yaxis{i + 1}"] = dict(
+                    overlaying="y",
+                    side="right" if i % 2 else "left",
+                    showgrid=False
+                )
+
         else:
-            fig = self._init_figure(title)
             for y_column in y_columns:
                 x_data, y_data = self._init_xy_data(array_or_df, x_column, y_column)
                 fig.add_trace(go.Scatter(x=x_data, y=y_data, mode='lines', name=get_name(y_column)))
-            fig.show()
+
+            layout_updates = {
+                "yaxis": dict(side="left", showgrid=True)
+            }
+
+        fig.update_layout(**layout_updates)
+        fig.update_layout(legend=dict(orientation="h", yanchor="top", y=-0.3, xanchor="center", x=0.5))
+        fig.show()
+
+    def plot_line_chart(self, array_or_df, x_column=None, y_columns=None, title="Line Chart", multi_axes=False,
+                        use_matplotlib=None):
+        y_columns = self._determine_y_columns(array_or_df, x_column, y_columns)
+
+        if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
+            self._plot_line_chart_matplotlib(array_or_df, x_column, y_columns, title, multi_axes)
+        else:
+            self._plot_line_chart_plotly(array_or_df, x_column, y_columns, title, multi_axes)
 
     def plot_bar_chart(self, array_or_df, x_column=None, y_columns=None, title="Bar Chart", use_matplotlib=None):
         x_data = self._init_x_data(array_or_df, x_column)
@@ -255,21 +326,23 @@ if __name__ == "__main__":
 
     df = pd.DataFrame(data)
 
-    ps = PlotService()
+    ps = PlotService(use_matplotlib=False)
     ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot")
-    ps.plot_bar_chart(df.head(10), y_columns=['A', 'C'], title="Bar Plot")
-    ps.plot_histogram(df, columns=['A', 'B'], title="Histogram")
-    ps.plot_histogram(df, columns=['A'], hue_column='Category', title="Histogram with Hue")
-    ps.plot_boxplot(df, columns=['A', 'C'], title="Boxplot")
-    ps.plot_acf_pacf(df['A'], b_pacf=True)
-    ps.plot_acf_pacf(df['A'])
-    ps.plot_scatter_matrix(df, title="Scatter Plot Matrix")
+    ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot", multi_axes=True)
+    # ps.plot_bar_chart(df.head(10), y_columns=['A', 'C'], title="Bar Plot")
+    # ps.plot_histogram(df, columns=['A', 'B'], title="Histogram")
+    # ps.plot_histogram(df, columns=['A'], hue_column='Category', title="Histogram with Hue")
+    # ps.plot_boxplot(df, columns=['A', 'C'], title="Boxplot")
+    # ps.plot_acf_pacf(df['A'], b_pacf=True)
+    # ps.plot_acf_pacf(df['A'])
+    # ps.plot_scatter_matrix(df, title="Scatter Plot Matrix")
 
     ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot", use_matplotlib=True)
-    ps.plot_bar_chart(df.head(10), y_columns=['A', 'C'], title="Bar Plot", use_matplotlib=True)
-    ps.plot_histogram(df, columns=['A', 'B'], title="Histogram", use_matplotlib=True)
-    ps.plot_histogram(df, columns=['A'], hue_column='Category', title="Histogram with Hue", use_matplotlib=True)
-    ps.plot_boxplot(df, columns=['A', 'C'], title="Boxplot", use_matplotlib=True)
-    ps.plot_acf_pacf(df['A'], b_pacf=True, use_matplotlib=True)
-    ps.plot_acf_pacf(df['A'], use_matplotlib=True)
-    ps.plot_scatter_matrix(df, title="Scatter Plot Matrix", use_matplotlib=True)
+    ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot", multi_axes=True, use_matplotlib=True)
+    # ps.plot_bar_chart(df.head(10), y_columns=['A', 'C'], title="Bar Plot", use_matplotlib=True)
+    # ps.plot_histogram(df, columns=['A', 'B'], title="Histogram", use_matplotlib=True)
+    # ps.plot_histogram(df, columns=['A'], hue_column='Category', title="Histogram with Hue", use_matplotlib=True)
+    # ps.plot_boxplot(df, columns=['A', 'C'], title="Boxplot", use_matplotlib=True)
+    # ps.plot_acf_pacf(df['A'], b_pacf=True, use_matplotlib=True)
+    # ps.plot_acf_pacf(df['A'], use_matplotlib=True)
+    # ps.plot_scatter_matrix(df, title="Scatter Plot Matrix", use_matplotlib=True)
