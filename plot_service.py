@@ -31,6 +31,9 @@ class PlotService:
 
     @staticmethod
     def _determine_y_columns(array_or_df, x_column, y_columns):
+        if not isinstance(y_columns, list) and y_columns is not None:
+            y_columns = [y_columns]
+
         if isinstance(array_or_df, pd.DataFrame):
             if x_column is None:
                 return y_columns or list(array_or_df.columns)
@@ -77,35 +80,64 @@ class PlotService:
         )
         return fig
 
-    def _calculate_ranges(self, array_or_df, y_columns):
-        value_ranges = {col: array_or_df[col].max() - array_or_df[col].min() for col in y_columns}
+    def _group_columns_by_scale(self, df, columns):
+        stats = {
+            col: {
+                'min': df[col].min(),
+                'max': df[col].max(),
+                'mid': (df[col].max() + df[col].min()) / 2
+            }
+            for col in columns
+        }
 
-        return sorted(y_columns, key=lambda col: value_ranges[col])
+        groups = []
+
+        for col in columns:
+            matched = False
+            for group in groups:
+                ref = stats[group[0]]
+                curr = stats[col]
+
+                range_ratio = (curr['max'] - curr['min']) / (ref['max'] - ref['min'])
+                pos_ratio = curr['mid'] / ref['mid'] if ref['mid'] != 0 else 1
+
+                if (0.67 < range_ratio < 2.0) and (0.5 < pos_ratio < 2.0):
+                    group.append(col)
+                    matched = True
+                    break
+
+            if not matched:
+                groups.append([col])
+
+        return groups
 
     def _plot_line_chart_matplotlib(self, array_or_df, x_column, y_columns, title, multi_axes):
         if multi_axes and len(y_columns) > 1:
             fig, ax1 = plt.subplots(figsize=(self.width / 100, self.height / 100))
             axes = [ax1]
 
-            sorted_columns = self._calculate_ranges(array_or_df, y_columns)
-
-            num_axes = min(len(y_columns), 4)
+            sorted_columns = self._group_columns_by_scale(array_or_df, y_columns)
+            num_axes = min(len(sorted_columns), 4)
 
             axis_mapping = {}
-            for i, col in enumerate(sorted_columns[:num_axes]):
+            for i, cols in enumerate(sorted_columns[:num_axes]):
+                y_label = ', '.join(get_name(col) for col in cols)
                 if i == 0:
-                    axis_mapping[col] = ax1
+                    ax1.set_ylabel(y_label)
+                    ax = ax1
                 else:
-                    new_ax = ax1.twinx()
-                    new_ax.spines[f'right' if i % 2 else 'left'].set_position(("outward", int(i / 2) * 50))
-                    axes.append(new_ax)
-                    axis_mapping[col] = new_ax
+                    ax = ax1.twinx()
+                    ax.set_ylabel(y_label)
+                    ax.spines[f'right' if i % 2 else 'left'].set_position(("outward", int(i / 2) * 50))
+                    axes.append(ax)
+
+                for col in cols:
+                    axis_mapping[col] = ax
 
             colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-            for i, y_column in enumerate(y_columns[:num_axes]):
+            for i, y_column in enumerate(y_columns):
                 x_data, y_data = self._init_xy_data(array_or_df, x_column, y_column)
-                axis_mapping[y_column].plot(x_data, y_data, label=get_name(y_column),
-                                            color=colors[i % len(colors)])
+                axis_mapping[y_column].plot(x_data, y_data, label=get_name(y_column), color=colors[i % len(colors)])
 
             handles, labels = zip(*[ax.get_legend_handles_labels() for ax in axes])
             handles, labels = sum(handles, []), sum(labels, [])
@@ -124,25 +156,26 @@ class PlotService:
     def _plot_line_chart_plotly(self, array_or_df, x_column, y_columns, title, multi_axes):
         fig = self._init_figure(title)
 
-        sorted_columns = self._calculate_ranges(array_or_df, y_columns)
+        sorted_columns = self._group_columns_by_scale(array_or_df, y_columns)
 
-        if multi_axes and len(y_columns) > 1:
-            num_axes = min(len(y_columns), 4)
-            axis_mapping = {col: f"y{i + 1}" for i, col in enumerate(sorted_columns[:num_axes])}
+        if multi_axes and len(sorted_columns) > 1:
+            num_axes = min(len(sorted_columns), 4)
+            axis_mapping = {col: f"y{i + 1}" for i, cols in enumerate(sorted_columns[:num_axes]) for col in cols}
 
-            for i, y_column in enumerate(sorted_columns[:num_axes]):
+            for y_column in y_columns:
                 x_data, y_data = self._init_xy_data(array_or_df, x_column, y_column)
                 fig.add_trace(go.Scatter(x=x_data, y=y_data, mode='lines', name=get_name(y_column),
                                          yaxis=axis_mapping[y_column]))
 
             layout_updates = {
-                "yaxis": dict(side="left", showgrid=True)
+                "yaxis1": dict(side="left", showgrid=True)
             }
             for i in range(1, num_axes):
                 layout_updates[f"yaxis{i + 1}"] = dict(
                     overlaying="y",
                     side="right" if i % 2 else "left",
-                    showgrid=False
+                    showgrid=False,
+                    showticklabels=True
                 )
 
         else:
@@ -260,9 +293,10 @@ class PlotService:
                 fig.add_trace(go.Box(y=array_or_df[column], name=get_name(column)))
             fig.show()
 
-    def plot_scatter_matrix(self, array_or_df, title="Scatter Plot Matrix", use_matplotlib=None):
+    def plot_scatter_matrix(self, array_or_df, title="Scatter Plot Matrix", figsize=(15, 15), nbinsx=50,
+                            use_matplotlib=None):
         if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
-            pd.plotting.scatter_matrix(array_or_df, figsize=(15, 15), alpha=0.5)
+            pd.plotting.scatter_matrix(array_or_df, figsize=figsize, alpha=0.5)
             plt.suptitle(title)
             plt.show()
         else:
@@ -293,6 +327,7 @@ class PlotService:
                             go.Histogram(
                                 x=array_or_df[col1],
                                 opacity=0.75,
+                                nbinsx=nbinsx,
                                 showlegend=False
                             ),
                             row=i + 1, col=j + 1
