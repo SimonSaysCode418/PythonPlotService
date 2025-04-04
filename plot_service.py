@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.dates as md
 import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objs as go
@@ -137,6 +138,8 @@ class PlotService:
             colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
             for i, y_column in enumerate(y_columns):
                 x_data, y_data = self._init_xy_data(array_or_df, x_column, y_column)
+                if pd.api.types.is_datetime64_any_dtype(x_data):
+                    axis_mapping[y_column].xaxis.set_major_formatter(md.DateFormatter('%H:%M:%S'))
                 axis_mapping[y_column].plot(x_data, y_data, label=get_name(y_column), color=colors[i % len(colors)])
 
             handles, labels = zip(*[ax.get_legend_handles_labels() for ax in axes])
@@ -147,6 +150,8 @@ class PlotService:
             for y_column in y_columns:
                 x_data, y_data = self._init_xy_data(array_or_df, x_column, y_column)
                 plt.plot(x_data, y_data, label=get_name(y_column))
+                if pd.api.types.is_datetime64_any_dtype(x_data):
+                    plt.gca().xaxis.set_major_formatter(md.DateFormatter('%H:%M:%S'))
                 plt.legend(loc="lower center", bbox_to_anchor=(0.5, -0.25), ncol=len(y_columns))
 
         plt.title(title)
