@@ -117,11 +117,10 @@ class PlotService:
             fig, ax1 = plt.subplots(figsize=(self.width / 100, self.height / 100))
             axes = [ax1]
 
-            sorted_columns = self._group_columns_by_scale(array_or_df, y_columns)
-            num_axes = min(len(sorted_columns), 4)
+            num_axes = min(len(y_columns), 4)
 
             axis_mapping = {}
-            for i, cols in enumerate(sorted_columns[:num_axes]):
+            for i, cols in enumerate(y_columns[:num_axes]):
                 y_label = ', '.join(get_name(col) for col in cols)
                 if i == 0:
                     ax1.set_ylabel(y_label)
@@ -161,11 +160,9 @@ class PlotService:
     def _plot_line_chart_plotly(self, array_or_df, x_column, y_columns, title, multi_axes):
         fig = self._init_figure(title)
 
-        sorted_columns = self._group_columns_by_scale(array_or_df, y_columns)
-
-        if multi_axes and len(sorted_columns) > 1:
-            num_axes = min(len(sorted_columns), 4)
-            axis_mapping = {col: f"y{i + 1}" for i, cols in enumerate(sorted_columns[:num_axes]) for col in cols}
+        if multi_axes and len(y_columns) > 1:
+            num_axes = min(len(y_columns), 4)
+            axis_mapping = {col: f"y{i + 1}" for i, cols in enumerate(y_columns[:num_axes]) for col in cols}
 
             for y_column in y_columns:
                 x_data, y_data = self._init_xy_data(array_or_df, x_column, y_column)
