@@ -5,6 +5,9 @@ name_dict = {
     507: 'GPS-Geschwindigkeit (km/h)',
     271: 'Batterieleistung (kW)',
     4628: 'Leistung Antriebsstrang (kW)',
+    'train_loss': 'Train Loss',
+    'valid_loss': 'Valid Loss',
+    'r2_scores': 'R²',
 }
 
 
