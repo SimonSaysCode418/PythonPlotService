@@ -5,9 +5,13 @@ name_dict = {
     507: 'GPS-Geschwindigkeit (km/h)',
     271: 'Batterieleistung (kW)',
     4628: 'Leistung Antriebsstrang (kW)',
-    'train_loss': 'Train Loss',
-    'valid_loss': 'Valid Loss',
+    'train_losses': 'Train Loss',
+    'valid_losses': 'Valid Loss',
     'r2_scores': 'R²',
+    'delta_forecast_kwh_rel': 'rel. Abweichung',
+    'target': 'Batterie-Verbrauch (kWh)',
+    'prediction': 'Prognose-Verbrauch (kWh)',
+    'battery_kwh': 'Batterie-Verbrauch (kWh)'
 }
 
 

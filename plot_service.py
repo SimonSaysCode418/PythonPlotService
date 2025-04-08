@@ -81,37 +81,6 @@ class PlotService:
         )
         return fig
 
-    def _group_columns_by_scale(self, df, columns):
-        stats = {
-            col: {
-                'min': df[col].min(),
-                'max': df[col].max(),
-                'mid': (df[col].max() + df[col].min()) / 2
-            }
-            for col in columns
-        }
-
-        groups = []
-
-        for col in columns:
-            matched = False
-            for group in groups:
-                ref = stats[group[0]]
-                curr = stats[col]
-
-                range_ratio = (curr['max'] - curr['min']) / (ref['max'] - ref['min'])
-                pos_ratio = curr['mid'] / ref['mid'] if ref['mid'] != 0 else 1
-
-                if (0.67 < range_ratio < 2.0) and (0.5 < pos_ratio < 2.0):
-                    group.append(col)
-                    matched = True
-                    break
-
-            if not matched:
-                groups.append([col])
-
-        return groups
-
     def _plot_line_chart_matplotlib(self, array_or_df, x_column, y_columns, title, multi_axes):
         if multi_axes and len(y_columns) > 1:
             fig, ax1 = plt.subplots(figsize=(self.width / 100, self.height / 100))
@@ -135,7 +104,7 @@ class PlotService:
                     axis_mapping[col] = ax
 
             colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-            for i, y_column in enumerate(y_columns):
+            for i, y_column in enumerate(axis_mapping.keys()):
                 x_data, y_data = self._init_xy_data(array_or_df, x_column, y_column)
                 if pd.api.types.is_datetime64_any_dtype(x_data):
                     axis_mapping[y_column].xaxis.set_major_formatter(md.DateFormatter('%H:%M:%S'))
@@ -220,7 +189,7 @@ class PlotService:
             fig.show()
 
     def plot_histogram(self, array_or_df, columns=None, hue_column=None, title="Histogram", gap_size=0.2, bins=30,
-                       use_matplotlib=None):
+                       scale_y=False, use_matplotlib=None):
         columns = self._determine_y_columns(array_or_df, None, columns)
 
         if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
@@ -234,6 +203,10 @@ class PlotService:
                 for col in columns:
                     plt.hist(array_or_df[col], bins=bins, alpha=0.5, label=get_name(col))
                 plt.legend()
+
+            if scale_y:
+                plt.yscale('log')
+
             plt.title(title)
             plt.show()
         else:
@@ -280,13 +253,17 @@ class PlotService:
             fig.update_layout(title=title or ('PACF' if b_pacf else 'ACF'))
             fig.show()
 
-    def plot_boxplot(self, array_or_df, columns=None, title="Boxplot", use_matplotlib=None):
+    def plot_boxplot(self, array_or_df, columns=None, title="Boxplot", scale_y=False, use_matplotlib=None):
         columns = columns or array_or_df.columns
 
         if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
             plt.figure(figsize=(self.width / 100, self.height / 100))
             data = [array_or_df[col] for col in columns]
             plt.boxplot(data, labels=[get_name(col) for col in columns])
+
+            if scale_y:
+                plt.yscale('log')
+            
             plt.title(title)
             plt.show()
         else:
