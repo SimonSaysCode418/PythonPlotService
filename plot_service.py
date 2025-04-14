@@ -217,11 +217,11 @@ class PlotService:
             if hue_column:
                 groups = array_or_df.groupby(hue_column)
                 for hue, group in groups:
-                    plt.hist(group[columns[0]], bins=bins, alpha=0.8, label=str(hue))
+                    plt.hist(group[columns[0]], bins=bins, alpha=0.6, label=str(hue))
                 plt.legend(title=hue_column)
             else:
                 for col in columns:
-                    plt.hist(array_or_df[col], bins=bins, alpha=0.7, label=get_name(col))
+                    plt.hist(array_or_df[col], bins=bins, alpha=0.6, label=get_name(col))
                 plt.legend()
 
             if scale_y:
