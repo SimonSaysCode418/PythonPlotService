@@ -9,9 +9,17 @@ name_dict = {
     'valid_losses': 'Valid Loss',
     'r2_scores': 'R²',
     'delta_forecast_kwh_rel': 'rel. Abweichung',
+    'difference_rel': 'rel. Abweichung',
     'target': 'Batterie-Verbrauch (kWh)',
     'prediction': 'Prognose-Verbrauch (kWh)',
-    'battery_kwh': 'Batterie-Verbrauch (kWh)'
+    'battery_kwh': 'Batterie-Verbrauch (kWh)',
+    'section': 'Sektion (von-nach)',
+    'duration_s': 'Fahrdauer (s)',
+    'distance_m': 'gemessene Fahrzeugdistanz (m)',
+    'weekday': 'Wochentag',
+    'hour': 'Stunde des Tages',
+    'deviation_section': 'Ø Abweichung von Sektion-Mittelwert (kWh)',
+    'outlier_rate': 'Anteil Ausreißer'
 }
 
 

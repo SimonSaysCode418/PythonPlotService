@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objs as go
 import plotly.express as px
+import seaborn as sns
 from plotly.subplots import make_subplots
+import statsmodels.api as sm
 from statsmodels.tsa.stattools import pacf, acf
 
 from functions.general import DateTimeConverter
@@ -81,7 +83,7 @@ class PlotService:
         )
         return fig
 
-    def _plot_line_chart_matplotlib(self, array_or_df, x_column, y_columns, title, multi_axes):
+    def _plot_line_chart_matplotlib(self, array_or_df, x_column, y_columns, title, multi_axes, hline):
         if multi_axes and len(y_columns) > 1:
             fig, ax1 = plt.subplots(figsize=(self.width / 100, self.height / 100))
             axes = [ax1]
@@ -112,18 +114,30 @@ class PlotService:
 
             handles, labels = zip(*[ax.get_legend_handles_labels() for ax in axes])
             handles, labels = sum(handles, []), sum(labels, [])
-            plt.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.25), ncol=len(y_columns))
+            plt.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.3), ncol=len(y_columns))
         else:
             plt.figure(figsize=(self.width / 100, self.height / 100))
             for y_column in y_columns:
                 x_data, y_data = self._init_xy_data(array_or_df, x_column, y_column)
                 plt.plot(x_data, y_data, label=get_name(y_column))
+
+                plt.ylabel(get_name(y_column))
+
                 if pd.api.types.is_datetime64_any_dtype(x_data):
                     plt.gca().xaxis.set_major_formatter(md.DateFormatter('%H:%M:%S'))
-                plt.legend(loc="lower center", bbox_to_anchor=(0.5, -0.25), ncol=len(y_columns))
 
+                if pd.api.types.is_integer_dtype(x_data):
+                    plt.xticks(np.unique(x_data))
+
+                plt.legend(loc="lower center", bbox_to_anchor=(0.5, -0.3), ncol=len(y_columns))
+
+        if isinstance(hline, (int, float)):
+            plt.axhline(hline, color='gray', linestyle=':')
+
+        plt.xlabel(get_name(x_column))
         plt.title(title)
         plt.subplots_adjust(bottom=0.2)
+        plt.tight_layout()
         plt.show()
 
     def _plot_line_chart_plotly(self, array_or_df, x_column, y_columns, title, multi_axes):
@@ -163,24 +177,30 @@ class PlotService:
         fig.show()
 
     def plot_line_chart(self, array_or_df, x_column=None, y_columns=None, title="Line Chart", multi_axes=False,
-                        use_matplotlib=None):
+                        hline=None, use_matplotlib=None):
         y_columns = self._determine_y_columns(array_or_df, x_column, y_columns)
 
         if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
-            self._plot_line_chart_matplotlib(array_or_df, x_column, y_columns, title, multi_axes)
+            self._plot_line_chart_matplotlib(array_or_df, x_column, y_columns, title, multi_axes, hline)
         else:
             self._plot_line_chart_plotly(array_or_df, x_column, y_columns, title, multi_axes)
 
     def plot_bar_chart(self, array_or_df, x_column=None, y_columns=None, title="Bar Chart", use_matplotlib=None):
         x_data = self._init_x_data(array_or_df, x_column)
-        y_columns = y_columns or array_or_df.columns
+        y_columns = self._determine_y_columns(array_or_df, x_column, y_columns)
 
         if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
             plt.figure(figsize=(self.width / 100, self.height / 100))
             for y_column in y_columns:
                 plt.bar(x_data, array_or_df[y_column], label=get_name(y_column))
+
+            plt.xlabel(get_name(x_column))
+            if len(y_columns) == 1:
+                plt.ylabel(get_name(y_columns[0]))
+            plt.xticks(rotation=45)
             plt.title(title)
             plt.legend()
+            plt.tight_layout()
             plt.show()
         else:
             fig = self._init_figure(title)
@@ -197,17 +217,20 @@ class PlotService:
             if hue_column:
                 groups = array_or_df.groupby(hue_column)
                 for hue, group in groups:
-                    plt.hist(group[columns[0]], bins=bins, alpha=0.5, label=str(hue))
+                    plt.hist(group[columns[0]], bins=bins, alpha=0.8, label=str(hue))
                 plt.legend(title=hue_column)
             else:
                 for col in columns:
-                    plt.hist(array_or_df[col], bins=bins, alpha=0.5, label=get_name(col))
+                    plt.hist(array_or_df[col], bins=bins, alpha=0.7, label=get_name(col))
                 plt.legend()
 
             if scale_y:
                 plt.yscale('log')
 
+            plt.ylabel('Anzahl')
+            plt.legend(loc="lower center", bbox_to_anchor=(0.5, -0.3))
             plt.title(title)
+            plt.tight_layout()
             plt.show()
         else:
             fig = self._init_figure(title)
@@ -235,6 +258,7 @@ class PlotService:
                 corr_array[1][:, 1] - corr_array[0]
             ])
             plt.title(title or ('PACF' if b_pacf else 'ACF'))
+            plt.tight_layout()
             plt.show()
         else:
             lower_y = corr_array[1][:, 0] - corr_array[0]
@@ -253,30 +277,105 @@ class PlotService:
             fig.update_layout(title=title or ('PACF' if b_pacf else 'ACF'))
             fig.show()
 
-    def plot_boxplot(self, array_or_df, columns=None, title="Boxplot", scale_y=False, use_matplotlib=None):
-        columns = columns or array_or_df.columns
+    def plot_boxplot(self, array_or_df, column_x, column_y, title=None, scale_y=False, use_matplotlib=None):
+        label_x = get_name(column_x)
+        label_y = get_name(column_y)
+
+        if isinstance(array_or_df, pd.DataFrame):
+            df = array_or_df[[column_x, column_y]].dropna()
+
+            grouped = df.groupby(column_x)[column_y].apply(list)
+            labels = grouped.index.tolist()
+            values = grouped.values
+
+        elif isinstance(array_or_df, np.ndarray) and array_or_df.dtype.names:
+            mask = ~np.isnan(array_or_df[column_y])
+            data = array_or_df[mask]
+
+            unique_keys = np.unique(data[column_x])
+            labels = unique_keys.tolist()
+            values = [data[column_y][data[column_x] == key] for key in unique_keys]
+        else:
+            raise TypeError("Daten müssen ein Pandas DataFrame oder strukturiertes NumPy-Array sein.")
 
         if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
             plt.figure(figsize=(self.width / 100, self.height / 100))
-            data = [array_or_df[col] for col in columns]
-            plt.boxplot(data, labels=[get_name(col) for col in columns])
+            plt.boxplot(values)
 
             if scale_y:
                 plt.yscale('log')
-            
+
+            plt.xticks(ticks=range(1, len(labels) + 1), labels=labels, rotation=45)
+            plt.xlabel(label_x)
+            plt.ylabel(label_y)
+            plt.title(title or f'Boxplot: {label_y} pro {label_x}')
+            plt.tight_layout()
+            plt.show()
+        else:
+            fig = self._init_figure(title or f'Boxplot: {label_y} pro {label_x}')
+
+            for label, val_list in zip(labels, values):
+                fig.add_trace(go.Box(
+                    y=val_list,
+                    name=str(label),
+                    boxpoints='outliers',
+                    marker=dict(opacity=0.7)
+                ))
+
+            fig.update_layout(
+                xaxis_title=label_x,
+                yaxis_title=label_y,
+                yaxis_type='log' if scale_y else 'linear',
+                margin=dict(t=50, b=80, l=80, r=20)
+            )
+            fig.show()
+
+    def plot_scatter_plot(self, array_or_df, x_column=None, y_column=None, title="Scatter Plot",
+                          hue_column=None, trend=False, use_matplotlib=None):
+        x_data = self._init_x_data(array_or_df, x_column)
+        y_data = array_or_df[y_column]
+
+        trendline = np.empty((0, 2))
+        if trend:
+            lowess = sm.nonparametric.lowess
+            trendline = lowess(y_data, x_data, frac=0.3)
+
+        if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
+            plt.figure(figsize=(self.width / 100, self.height / 100))
+
+            sns.scatterplot(data=array_or_df, x=x_column, y=y_column, alpha=0.7, s=5, hue=hue_column)
+
+            if trend:
+                plt.plot(trendline[:, 0], trendline[:, 1], color='red', label='Trendlinie (LOWESS)')
+                plt.axhline(0, color='black', linestyle='dashed')
+
+            plt.xlabel(get_name(x_column))
+            plt.ylabel(get_name(y_column))
             plt.title(title)
+            if plt.gca().get_legend_handles_labels()[1]:
+                plt.legend()
+            plt.tight_layout()
             plt.show()
         else:
             fig = self._init_figure(title)
-            for column in columns:
-                fig.add_trace(go.Box(y=array_or_df[column], name=get_name(column)))
+            fig.add_trace(go.Scatter(x=x_data, y=y_data, mode='markers', name=get_name(y_column)))
+            if trend:
+                fig.add_trace(go.Scatter(x=trendline[:, 0], y=trendline[:, 1], mode='lines', name='Trendlinie',
+                                         line=dict(color='red')))
+                fig.add_hline(y=0, line_dash='dash', line_color='gray', name='y = 0')
             fig.show()
 
-    def plot_scatter_matrix(self, array_or_df, title="Scatter Plot Matrix", figsize=(15, 15), nbinsx=50,
+    def plot_scatter_matrix(self, array_or_df, title="Scatter Plot Matrix", figsize=(12, 12), nbinsx=50,
                             use_matplotlib=None):
         if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
-            pd.plotting.scatter_matrix(array_or_df, figsize=figsize, alpha=0.5)
+            sns.pairplot(array_or_df, plot_kws={'s': 5, 'alpha': 0.3})
+
+            for ax in plt.gcf().axes:
+                ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
+                ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
+
             plt.suptitle(title)
+            plt.tight_layout()
             plt.show()
         else:
             if isinstance(array_or_df, np.ndarray):
@@ -337,26 +436,33 @@ if __name__ == "__main__":
         'F': np.random.binomial(n=100, p=0.3, size=num_entries),  # Binomialverteilung
         'Category': np.random.choice(['Group1', 'Group2', 'Group3'], size=num_entries)  # Kategorien
     }
+    data['G'] = data['A'] ** 2 + np.random.normal(loc=0, scale=0.5, size=num_entries)
 
     df = pd.DataFrame(data)
 
     ps = PlotService(use_matplotlib=False)
-    ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot")
-    ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot", multi_axes=True)
+    # ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot")
+    # ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot", multi_axes=True)
     # ps.plot_bar_chart(df.head(10), y_columns=['A', 'C'], title="Bar Plot")
     # ps.plot_histogram(df, columns=['A', 'B'], title="Histogram")
     # ps.plot_histogram(df, columns=['A'], hue_column='Category', title="Histogram with Hue")
-    # ps.plot_boxplot(df, columns=['A', 'C'], title="Boxplot")
+    # ps.plot_boxplot(df, column_x='Category', column_y='A')
     # ps.plot_acf_pacf(df['A'], b_pacf=True)
     # ps.plot_acf_pacf(df['A'])
     # ps.plot_scatter_matrix(df, title="Scatter Plot Matrix")
+    ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot")
+    ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", trend=True)
 
-    ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot", use_matplotlib=True)
-    ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot", multi_axes=True, use_matplotlib=True)
+    # ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot", use_matplotlib=True)
+    # ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot", multi_axes=True, use_matplotlib=True)
     # ps.plot_bar_chart(df.head(10), y_columns=['A', 'C'], title="Bar Plot", use_matplotlib=True)
     # ps.plot_histogram(df, columns=['A', 'B'], title="Histogram", use_matplotlib=True)
     # ps.plot_histogram(df, columns=['A'], hue_column='Category', title="Histogram with Hue", use_matplotlib=True)
-    # ps.plot_boxplot(df, columns=['A', 'C'], title="Boxplot", use_matplotlib=True)
+    # ps.plot_boxplot(df, column_x='Category', column_y='A', use_matplotlib=True)
     # ps.plot_acf_pacf(df['A'], b_pacf=True, use_matplotlib=True)
     # ps.plot_acf_pacf(df['A'], use_matplotlib=True)
     # ps.plot_scatter_matrix(df, title="Scatter Plot Matrix", use_matplotlib=True)
+    ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", use_matplotlib=True)
+    ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", trend=True, use_matplotlib=True)
+    ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", hue_column='Category',
+                         use_matplotlib=True)
