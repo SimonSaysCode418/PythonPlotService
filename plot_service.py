@@ -30,6 +30,11 @@ class PlotService:
         if is_datetime:
             datetime_converter = DateTimeConverter()
             x_data = datetime_converter.convert_series_to_local_datetime(x_data)
+
+        if x_column is not None:
+            array_or_df = array_or_df.copy()
+            x_data = array_or_df[x_column].map(get_name).fillna(array_or_df[x_column])
+
         return x_data
 
     @staticmethod
@@ -185,21 +190,30 @@ class PlotService:
         else:
             self._plot_line_chart_plotly(array_or_df, x_column, y_columns, title, multi_axes)
 
-    def plot_bar_chart(self, array_or_df, x_column=None, y_columns=None, title="Bar Chart", use_matplotlib=None):
+    def plot_bar_chart(self, array_or_df, x_column=None, y_columns=None, title="Bar Chart", horizontal=False,
+                       use_matplotlib=None):
         x_data = self._init_x_data(array_or_df, x_column)
         y_columns = self._determine_y_columns(array_or_df, x_column, y_columns)
 
         if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
             plt.figure(figsize=(self.width / 100, self.height / 100))
             for y_column in y_columns:
-                plt.bar(x_data, array_or_df[y_column], label=get_name(y_column))
+                if horizontal:
+                    plt.barh(x_data, array_or_df[y_column])
+                else:
+                    plt.bar(x_data, array_or_df[y_column])
 
-            plt.xlabel(get_name(x_column))
-            if len(y_columns) == 1:
-                plt.ylabel(get_name(y_columns[0]))
+            if horizontal:
+                plt.ylabel(get_name(x_column))
+                if len(y_columns) == 1:
+                    plt.xlabel(get_name(y_columns[0]))
+            else:
+                plt.xlabel(get_name(x_column))
+                if len(y_columns) == 1:
+                    plt.ylabel(get_name(y_columns[0]))
+
             plt.xticks(rotation=45)
             plt.title(title)
-            plt.legend()
             plt.tight_layout()
             plt.show()
         else:
