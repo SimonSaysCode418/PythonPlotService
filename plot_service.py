@@ -21,7 +21,7 @@ class PlotService:
         self.colors = list(px.colors.qualitative.Set1 + px.colors.qualitative.Set3)
 
     @staticmethod
-    def _init_x_data(array_or_df, x_column):
+    def _init_x_data(array_or_df, x_column, map_names=False):
         x_data = array_or_df.index if x_column is None else array_or_df[x_column]
         if isinstance(x_data, np.ndarray):
             is_datetime = np.issubdtype(x_data.dtype, np.datetime64)
@@ -31,7 +31,7 @@ class PlotService:
             datetime_converter = DateTimeConverter()
             x_data = datetime_converter.convert_series_to_local_datetime(x_data)
 
-        if x_column is not None:
+        if x_column is not None and map_names:
             array_or_df = array_or_df.copy()
             x_data = array_or_df[x_column].map(get_name).fillna(array_or_df[x_column])
 
@@ -192,7 +192,7 @@ class PlotService:
 
     def plot_bar_chart(self, array_or_df, x_column=None, y_columns=None, title="Bar Chart", horizontal=False,
                        use_matplotlib=None):
-        x_data = self._init_x_data(array_or_df, x_column)
+        x_data = self._init_x_data(array_or_df, x_column, map_names=True)
         y_columns = self._determine_y_columns(array_or_df, x_column, y_columns)
 
         if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
