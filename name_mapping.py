@@ -1,4 +1,6 @@
 name_dict = {
+    'A': 'TEST',
+
     'difference_kwh': 'Abweichung (kWh)',
     'resid': 'Residuen',
     'fittedvalues': 'angepasste Werte',
@@ -40,11 +42,21 @@ name_dict = {
     'speed_m_s_avg': 'Ø Geschwindigkeit (m/s)',
     'speed_m_s_std': 'σ Geschwindigkeit (m/s)',
     'speed_osm_m_s_avg': 'Ø max. OSM-Geschw. (m/s)',
-    "temp_outside_avg": 'Außentemperatur (°C)',
+
+    'temp_outside_avg': 'Außentemperatur (°C)',
+    'delta_out_target_temp': 'Δ Ziel-Außentemperatur (°C)',
+    'hvac_cop': 'HVAC COP',
 
     'lat': 'Latitude',
     'lon': 'Longitude',
-    'elevation': 'Höhe (m)'
+    'elevation': 'Höhe (m)',
+
+    'energy_roll': 'E Rollwiderstand (kWh)',
+    'energy_aero': 'E Luftwiderstand (kWh)',
+    'energy_ascent': 'E Steigung (kWh)',
+    'energy_descent': 'E Gefälle (kWh)',
+    'energy_accel': 'E Beschleunigung (kWh)',
+    'energy_hvac': 'E HVAC (kWh)',
 }
 
 

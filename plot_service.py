@@ -198,10 +198,17 @@ class PlotService:
         if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
             plt.figure(figsize=(self.width / 100, self.height / 100))
             for y_column in y_columns:
-                if horizontal:
-                    plt.barh(x_data, array_or_df[y_column])
+                y_data = array_or_df[y_column]
+
+                if len(y_columns) == 1 and np.issubdtype(y_data.dtype, np.number):
+                    colors = ['orange' if v < 0 else 'steelblue' for v in y_data]
                 else:
-                    plt.bar(x_data, array_or_df[y_column])
+                    colors = None
+
+                if horizontal:
+                    plt.barh(x_data, array_or_df[y_column], color=colors)
+                else:
+                    plt.bar(x_data, array_or_df[y_column], color=colors)
 
             if horizontal:
                 plt.ylabel(get_name(x_column))
@@ -212,7 +219,7 @@ class PlotService:
                 if len(y_columns) == 1:
                     plt.ylabel(get_name(y_columns[0]))
 
-            plt.xticks(rotation=45)
+            plt.xticks(rotation=45, ha='right')
             plt.title(title)
             plt.tight_layout()
             plt.show()
@@ -258,6 +265,55 @@ class PlotService:
                     fig.add_trace(go.Histogram(x=array_or_df[col], name=get_name(col), opacity=0.75))
                 fig.update_layout(bargap=gap_size)
             fig.show()
+
+    def plot_heatmap(self, array_or_df, title="Heatmap", use_matplotlib=None):
+        corr = array_or_df.copy()
+        mask = np.triu(np.ones_like(corr, dtype=bool), k=1)
+
+        masked_corr = corr.mask(mask)
+        non_empty_rows = ~masked_corr.isnull().all(axis=1)
+        non_empty_cols = ~masked_corr.isnull().all(axis=0)
+
+        corr = corr.loc[non_empty_rows, non_empty_cols]
+        mask = np.triu(np.ones_like(corr, dtype=bool), k=1)
+
+        n_features = len(corr.columns)
+        cell_size = 0.5
+        width = max(6.0, n_features * cell_size)
+        height = max(4.0, len(corr) * cell_size)
+
+        font = 6
+
+        if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
+            plt.figure(figsize=(width, height))
+
+            cmap = sns.diverging_palette(230, 20, as_cmap=True)
+
+            ax = sns.heatmap(
+                corr,
+                mask=mask,
+                cmap=cmap,
+                vmax=1,
+                center=0.5,
+                annot=True,
+                fmt=".2f",
+                annot_kws={"size": font},
+                square=True,
+                linewidths=.5,
+                cbar_kws={"shrink": .5}
+            )
+
+            ax.set_xticklabels(
+                [get_name(label.get_text()) for label in ax.get_xticklabels()], fontsize=font)
+            ax.set_yticklabels(
+                [get_name(label.get_text()) for label in ax.get_yticklabels()], fontsize=font)
+
+            plt.yticks(rotation=0)
+            plt.xticks(rotation=45, ha='right')
+
+            plt.title(title)
+            plt.tight_layout()
+            plt.show()
 
     def plot_acf_pacf(self, series, alpha=0.05, lags=None, title=None, b_pacf=False, use_matplotlib=None):
         lags = min(lags, int(len(series) // 2)) if lags is not None else lags
@@ -464,8 +520,8 @@ if __name__ == "__main__":
     # ps.plot_acf_pacf(df['A'], b_pacf=True)
     # ps.plot_acf_pacf(df['A'])
     # ps.plot_scatter_matrix(df, title="Scatter Plot Matrix")
-    ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot")
-    ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", trend=True)
+    # ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot")
+    # ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", trend=True)
 
     # ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot", use_matplotlib=True)
     # ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot", multi_axes=True, use_matplotlib=True)
@@ -476,7 +532,8 @@ if __name__ == "__main__":
     # ps.plot_acf_pacf(df['A'], b_pacf=True, use_matplotlib=True)
     # ps.plot_acf_pacf(df['A'], use_matplotlib=True)
     # ps.plot_scatter_matrix(df, title="Scatter Plot Matrix", use_matplotlib=True)
-    ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", use_matplotlib=True)
-    ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", trend=True, use_matplotlib=True)
-    ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", hue_column='Category',
-                         use_matplotlib=True)
+    # ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", use_matplotlib=True)
+    # ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", trend=True, use_matplotlib=True)
+    # ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", hue_column='Category',
+    #                      use_matplotlib=True)
+    ps.plot_heatmap(df[['A', 'B', 'C', 'D', 'E', 'F']].corr(), use_matplotlib=True)
