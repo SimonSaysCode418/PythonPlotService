@@ -1,7 +1,4 @@
 name_dict = {
-    'A': 'TEST',
-
-    'difference_kwh': 'Abweichung (kWh)',
     'resid': 'Residuen',
     'fittedvalues': 'angepasste Werte',
     'resid_energy': 'Residuen - Energie-Reg',
@@ -13,6 +10,9 @@ name_dict = {
     'valid_losses': 'Valid Loss',
     'r2_scores': 'R²',
     'delta_forecast_kwh_rel': 'rel. Abweichung',
+    'difference': 'Abweichung (kWh)',
+    'difference_energy': 'Abweichung (kWh)',
+    'difference_kwh': 'Abweichung (kWh)',
     'difference_rel': 'rel. Abweichung',
     'difference_rel_energy': 'rel. Abweichung',
     'target': 'Batterie-Verbrauch (kWh)',

@@ -413,7 +413,9 @@ class PlotService:
         if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
             plt.figure(figsize=(self.width / 100, self.height / 100))
 
-            sns.scatterplot(data=array_or_df, x=x_column, y=y_column, alpha=0.7, s=5, hue=hue_column)
+            sns.scatterplot(data=array_or_df, x=x_column, y=y_column, alpha=0.7, s=5,
+                            hue=array_or_df[hue_column].map({0: "Stadt", 1: "Überland"}),
+                            hue_order=['Stadt', 'Überland'])
 
             if trend:
                 plt.plot(trendline[:, 0], trendline[:, 1], color='red', label='Trendlinie (LOWESS)')
