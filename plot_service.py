@@ -1,3 +1,5 @@
+from itertools import chain
+
 import numpy as np
 import matplotlib.dates as md
 import matplotlib.pyplot as plt
@@ -19,6 +21,11 @@ class PlotService:
         self.height = height
         self.width = width
         self.colors = list(px.colors.qualitative.Set1 + px.colors.qualitative.Set3)
+
+    @staticmethod
+    def is_binary(series: pd.Series) -> bool:
+        vals = series.dropna().unique()
+        return len(vals) == 2 and set(vals) == {0, 1}
 
     @staticmethod
     def _init_x_data(array_or_df, x_column, map_names=False):
@@ -115,11 +122,17 @@ class PlotService:
                 x_data, y_data = self._init_xy_data(array_or_df, x_column, y_column)
                 if pd.api.types.is_datetime64_any_dtype(x_data):
                     axis_mapping[y_column].xaxis.set_major_formatter(md.DateFormatter('%H:%M:%S'))
-                axis_mapping[y_column].plot(x_data, y_data, label=get_name(y_column), color=colors[i % len(colors)])
+
+                is_binary = self.is_binary(y_data)
+                marker = 'x' if is_binary else None
+                linestyle = '' if is_binary else '-'
+                axis_mapping[y_column].plot(x_data, y_data, label=get_name(y_column),
+                                            color=colors[i % len(colors)], linestyle=linestyle, marker=marker)
 
             handles, labels = zip(*[ax.get_legend_handles_labels() for ax in axes])
             handles, labels = sum(handles, []), sum(labels, [])
-            plt.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.3), ncol=len(y_columns))
+            plt.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.3),
+                       ncol=len(list(chain.from_iterable(y_columns))))
         else:
             plt.figure(figsize=(self.width / 100, self.height / 100))
             for y_column in y_columns:
@@ -134,7 +147,8 @@ class PlotService:
                 if pd.api.types.is_integer_dtype(x_data):
                     plt.xticks(np.unique(x_data))
 
-                plt.legend(loc="lower center", bbox_to_anchor=(0.5, -0.3), ncol=len(y_columns))
+                plt.legend(loc="lower center", bbox_to_anchor=(0.5, -0.3),
+                           ncol=len(list(chain.from_iterable(y_columns))))
 
         if isinstance(hline, (int, float)):
             plt.axhline(hline, color='gray', linestyle=':')
@@ -230,19 +244,21 @@ class PlotService:
             fig.show()
 
     def plot_histogram(self, array_or_df, columns=None, hue_column=None, title="Histogram", gap_size=0.2, bins=30,
-                       scale_y=False, use_matplotlib=None):
+                       sub=False, x_min=.0, x_max=.0, scale_y=False, use_matplotlib=None):
         columns = self._determine_y_columns(array_or_df, None, columns)
 
         if use_matplotlib if isinstance(use_matplotlib, bool) else self.use_matplotlib:
             plt.figure(figsize=(self.width / 100, self.height / 100))
+            main_ax = plt.gca()
+
             if hue_column:
                 groups = array_or_df.groupby(hue_column)
                 for hue, group in groups:
-                    plt.hist(group[columns[0]], bins=bins, alpha=0.6, label=str(hue))
+                    main_ax.hist(group[columns[0]], bins=bins, alpha=0.6, label=str(hue))
                 plt.legend(title=hue_column)
             else:
                 for col in columns:
-                    plt.hist(array_or_df[col], bins=bins, alpha=0.6, label=get_name(col))
+                    main_ax.hist(array_or_df[col], bins=bins, alpha=0.6, label=get_name(col))
                 plt.legend()
 
             if scale_y:
@@ -252,6 +268,19 @@ class PlotService:
             plt.legend(loc="lower center", bbox_to_anchor=(0.5, -0.3))
             plt.title(title)
             plt.tight_layout()
+
+            if sub and len(columns) == 1:
+                inset_ax = main_ax.inset_axes([0.48, 0.42, 0.50, 0.50])
+                clipped = array_or_df[(array_or_df[columns[0]] >= x_min) & (array_or_df[columns[0]] <= x_max)]
+
+                for col in columns:
+                    inset_ax.hist(clipped[col], bins=bins, alpha=0.6, label=col)
+
+                if scale_y:
+                    inset_ax.set_yscale('log')
+                inset_ax.set_title(f"Ausschnitt {x_min} bis {x_max}", fontsize=8)
+                inset_ax.tick_params(axis='both', which='major', labelsize=6)
+
             plt.show()
         else:
             fig = self._init_figure(title)
@@ -446,6 +475,13 @@ class PlotService:
                 ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
                 ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
 
+                xlabel = ax.get_xlabel()
+                ylabel = ax.get_ylabel()
+                if xlabel in array_or_df.columns:
+                    ax.set_xlabel(get_name(xlabel))
+                if ylabel in array_or_df.columns:
+                    ax.set_ylabel(get_name(ylabel))
+
             plt.suptitle(title)
             plt.tight_layout()
             plt.show()
@@ -529,6 +565,7 @@ if __name__ == "__main__":
     # ps.plot_line_chart(df, y_columns=['A', 'B'], title="Line Plot", multi_axes=True, use_matplotlib=True)
     # ps.plot_bar_chart(df.head(10), y_columns=['A', 'C'], title="Bar Plot", use_matplotlib=True)
     # ps.plot_histogram(df, columns=['A', 'B'], title="Histogram", use_matplotlib=True)
+    ps.plot_histogram(df, columns=['A'], title="Histogram", use_matplotlib=True, sub=True, x_min=0.5, x_max=0.9)
     # ps.plot_histogram(df, columns=['A'], hue_column='Category', title="Histogram with Hue", use_matplotlib=True)
     # ps.plot_boxplot(df, column_x='Category', column_y='A', use_matplotlib=True)
     # ps.plot_acf_pacf(df['A'], b_pacf=True, use_matplotlib=True)
@@ -538,4 +575,4 @@ if __name__ == "__main__":
     # ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", trend=True, use_matplotlib=True)
     # ps.plot_scatter_plot(df, x_column='A', y_column='G', title="Scatter Plot", hue_column='Category',
     #                      use_matplotlib=True)
-    ps.plot_heatmap(df[['A', 'B', 'C', 'D', 'E', 'F']].corr(), use_matplotlib=True)
+    # ps.plot_heatmap(df[['A', 'B', 'C', 'D', 'E', 'F']].corr(), use_matplotlib=True)

@@ -15,16 +15,17 @@ name_dict = {
     'difference_kwh': 'Abweichung (kWh)',
     'difference_rel': 'rel. Abweichung',
     'difference_rel_energy': 'rel. Abweichung',
-    'target': 'Batterie-Verbrauch (kWh)',
-    'prediction': 'Prognose-Verbrauch (kWh)',
-    'prediction_energy': 'Prognose-Verbrauch - Energie-Reg (kWh)',
-    'battery_kwh': 'Batterie-Verbrauch (kWh)',
+    'target': 'Batterieverbrauch (kWh)',
+    'prediction': 'Prognoseverbrauch (kWh)',
+    'prediction_energy': 'Energie-Reg. - Prognoseverbrauch (kWh)',
+    'battery_kwh': 'Batterieverbrauch (kWh)',
     'section': 'Sektion (von-nach)',
     'duration_s': 'Fahrdauer (s)',
     'deviation_section': 'Ø Abweichung von Sektion-Mittelwert (kWh)',
     'outlier_rate': 'Anteil Ausreißer',
     'is_overland': 'Ist Überland',
 
+    'timestamp': 't',
     'weekday': 'Wochentag',
     'weekday_sin': 'Wochentag (sin)',
     'weekday_cos': 'Wochentag (cos)',
@@ -33,7 +34,7 @@ name_dict = {
     "hour_cos": "Stunde (cos)",
 
     'distance_m': 'Fahrzeugdistanz (m)',
-    'distance_osm_m': 'OSM-Distanz-OSM (m)',
+    'distance_osm_m': 'OSM-Distanz (m)',
     'angle_rad_sum': 'Kurven (rad)',
     'ascent_m_sum': 'Steigung (m)',
     'descent_m_sum': 'Gefälle (m)',
@@ -57,6 +58,9 @@ name_dict = {
     'energy_descent': 'E Gefälle (kWh)',
     'energy_accel': 'E Beschleunigung (kWh)',
     'energy_hvac': 'E HVAC (kWh)',
+    4204: 'Tür 1',
+    4206: 'Tür 2',
+    20: 'Geschwindigkeit (km/h)'
 }
 
 
